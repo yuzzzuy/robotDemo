@@ -28,11 +28,7 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.github.pengrad</groupId>
-            <artifactId>java-telegram-bot-api</artifactId>
-            <version>5.7.0</version>
-        </dependency>
+<!--s-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -43,6 +39,14 @@
             <artifactId>telegrambots</artifactId>
             <version>5.7.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-abilities</artifactId>
+            <version>5.7.1</version>
+        </dependency>
+
+
     </dependencies>
 
     <build>
