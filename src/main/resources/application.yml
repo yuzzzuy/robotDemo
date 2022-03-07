@@ -1,3 +1,6 @@
 bot:
-  token: 5154611046:AAE1onSMqX_gflyZ4rHpA5108NZzTYNTSss
+  token: 5154611046:AAFIRV8YTUn9wM43L3RaxVO34m4qP55y7kI
   name: nnnnnbbbbbbot
+logging:
+  level:
+    root: info

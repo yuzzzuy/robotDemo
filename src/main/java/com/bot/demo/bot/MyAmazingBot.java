@@ -1,6 +1,11 @@
 package com.bot.demo.bot;
 
+import com.bot.demo.config.DefaultBotOptionsConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.telegram.abilitybots.api.bot.AbilityBot;
 import org.telegram.abilitybots.api.util.AbilityUtils;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
@@ -17,6 +22,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,11 +32,12 @@ import java.util.List;
  * @description
  */
 @Slf4j
+@Component
 public class MyAmazingBot extends AbilityBot {
 
 
-    protected MyAmazingBot(String botToken, String botUsername, DefaultBotOptions botOptions) {
-        super(botToken, botUsername, botOptions);
+    protected MyAmazingBot(@Value("${bot.token}") String botToken, @Value("${bot.name}") String botUsername,@NotNull ObjectProvider<DefaultBotOptions> defaultBotOptions){
+        super(botToken, botUsername,defaultBotOptions.getIfAvailable(DefaultBotOptions::new));
     }
 
     private static ForceReplyKeyboard forceReply() {
@@ -52,7 +59,7 @@ public class MyAmazingBot extends AbilityBot {
             SendMessage message = new SendMessage();
 
             //进群时间
-            if (update.getMessage().getNewChatMembers() != null) {
+            if (update.getMessage().getNewChatMembers() != null && update.getMessage().getNewChatMembers().size() > 0) {
                 List<User> user = update.getMessage().getNewChatMembers();
                 log.warn("[进群事件]->User[{}]", user);
                 return;
@@ -68,6 +75,7 @@ public class MyAmazingBot extends AbilityBot {
 
             //群组消息
             if (AbilityUtils.isSuperGroupUpdate(update) || AbilityUtils.isGroupUpdate(update)) {
+                log.warn("[群组消息]->update[{}]", update);
                 ArrayList<ChatMember> admins = getAdmin(update);
                 boolean isAdmin = false;
                 assert admins != null;
@@ -85,25 +93,28 @@ public class MyAmazingBot extends AbilityBot {
                     message.setChatId(String.valueOf(update.getMessage().getFrom().getId()));
                     message.setText("https://baidu.com");
                 } else {
-                    message.setText("if you want get some help,Please click @nnnnnbbbbbbot!");
+                    if (update.getMessage().getText().contains("/")) {
+                        message.setText("抱歉,您没有管理员权限,禁止乱玩指令或按钮!");
+                    } else {
+                        message.setText("抱歉,您没有管理员权限,禁止乱玩指令或按钮!");
+                    }
                     message.setReplyToMessageId(update.getMessage().getMessageId());
                     message.setProtectContent(true);
-                }
 
+                }
 
                 try {
                     execute(message);
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
-
                 return;
 
             }
 
 
             //commands
-            if (update.getMessage().getText().equals("/achievements")) {
+            if ("/achievements".equals(update.getMessage().getText())) {
 
                 message.setChatId(update.getMessage().getChatId().toString());
                 message.setText("Please input your wallet address on chain!");
@@ -124,7 +135,7 @@ public class MyAmazingBot extends AbilityBot {
                 String text = update.getMessage().getText();
                 message.setChatId(String.valueOf(update.getMessage().getChatId()));
                 //regex
-                if ("1" .equals(text)) {
+                if ("1".equals(text)) {
                     message.setText("Add another address");
                     InlineKeyboardMarkup inlineKeyboardMarkup = getAddModule("no");
                     message.setReplyMarkup(inlineKeyboardMarkup);
@@ -158,7 +169,7 @@ public class MyAmazingBot extends AbilityBot {
         //按钮事件返回
         if (update.hasCallbackQuery() && update.getCallbackQuery().getData() != null) {
             SendMessage message = new SendMessage();
-            if ("Cancel" .equals(update.getCallbackQuery().getData())) {
+            if ("Cancel".equals(update.getCallbackQuery().getData())) {
                 EditMessageText editMessageText = new EditMessageText();
                 editMessageText.setChatId(update.getCallbackQuery().getMessage().getChatId().toString());
                 editMessageText.setMessageId(update.getCallbackQuery().getMessage().getMessageId());
@@ -169,7 +180,7 @@ public class MyAmazingBot extends AbilityBot {
                     e.printStackTrace();
                 }
                 return;
-            } else if ("add" .equals(update.getCallbackQuery().getData())) {
+            } else if ("add".equals(update.getCallbackQuery().getData())) {
                 forReplyMessage(update, message);
                 return;
             }
@@ -185,10 +196,10 @@ public class MyAmazingBot extends AbilityBot {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
         InlineKeyboardButton add = addInlineKeyboard("Add", "add", InlineKeyboardButtonFiled.CALLBACK_DATA);
         buttons.add(add);
-        if ("back" .equals(kind)) {
+        if ("back".equals(kind)) {
             InlineKeyboardButton back = addInlineKeyboard("Cancel", "Cancel", InlineKeyboardButtonFiled.CALLBACK_DATA);
             buttons.add(back);
-        } else if ("no" .equals(kind)) {
+        } else if ("no".equals(kind)) {
             InlineKeyboardButton back = addInlineKeyboard("No more, show my report", "No more, show my report", InlineKeyboardButtonFiled.CALLBACK_DATA);
             buttons.add(back);
         }
