@@ -2,6 +2,7 @@ package com.bot.demo.bot;
 
 import com.bot.demo.constants.Button;
 import com.bot.demo.service.ButtonMessageService;
+import com.bot.demo.service.GroupMessageService;
 import com.bot.demo.service.ReplyMessageService;
 import com.bot.demo.utils.MessageUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import org.telegram.abilitybots.api.objects.Privacy;
 import org.telegram.abilitybots.api.util.AbilityUtils;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.BanChatMember;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatAdministrators;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -31,7 +33,7 @@ import java.util.List;
 /**
  * @author WangChen
  * @date 2022/3/3 15:00
- * @description  Bot
+ * @description Bot
  */
 @Slf4j
 @Component
@@ -43,6 +45,8 @@ public class TelegramBot extends AbilityBot {
     private ButtonMessageService buttonService;
     @Resource
     private ReplyMessageService replyService;
+    @Resource
+    private GroupMessageService groupService;
 
     protected TelegramBot(@Value("${bot.token}") String botToken
             , @Value("${bot.name}") String botUsername
@@ -62,24 +66,28 @@ public class TelegramBot extends AbilityBot {
         //命令可以走此方法 只需要实现命令
         super.onUpdateReceived(update);
         //TODO 拆分方法
+
+        //进群事件
+        if (update.getMessage().getNewChatMembers() != null && update.getMessage().getNewChatMembers().size() > 0) {
+            List<User> users = update.getMessage().getNewChatMembers();
+            users.forEach(user -> {
+                log.warn("[进群事件]->User[{}]", user);
+                SendMessage sendMessage = groupService.joinGroupEvent(update, user);
+                send(sendMessage);
+            });
+            return;
+        }
+
+        //退群事件
+        if (update.getMessage().getLeftChatMember() != null) {
+            User user = update.getMessage().getLeftChatMember();
+            log.warn("[退群事件]->User[{}]", user);
+            return;
+        }
+
         //正常事件返回
         if (update.hasMessage() && update.getMessage().hasText()) {
             SendMessage message = new SendMessage();
-
-            //进群时间
-            if (update.getMessage().getNewChatMembers() != null && update.getMessage().getNewChatMembers().size() > 0) {
-                List<User> user = update.getMessage().getNewChatMembers();
-                log.warn("[进群事件]->User[{}]", user);
-                return;
-            }
-
-            //退群事件
-            if (update.getMessage().getLeftChatMember() != null) {
-                User user = update.getMessage().getLeftChatMember();
-                log.warn("[退群事件]->User[{}]", user);
-                return;
-            }
-
 
             //群组消息
             if (AbilityUtils.isSuperGroupUpdate(update) || AbilityUtils.isGroupUpdate(update)) {
@@ -96,16 +104,11 @@ public class TelegramBot extends AbilityBot {
                 message.setChatId(update.getMessage().getChatId().toString());
                 //私聊
                 //TODO 逻辑
-                if (isAdmin) {
-                    if (AbilityUtils.isValidCommand(update.getMessage().getText())) {
-                        message.setText("@" + update.getMessage().getFrom().getUserName() + ",抱歉,您没有管理员权限,禁止乱玩指令或按钮!");
-                    } else {
-                        message.setText("@" + update.getMessage().getFrom().getUserName() + ",抱歉,您没有管理员权限,禁止乱玩指令或按钮!");
-                    }
+                if (!isAdmin) {
+                    message.setText("@" + update.getMessage().getFrom().getUserName() + ",抱歉,您没有管理员权限,禁止乱玩指令或按钮!");
                     send(message);
                     return;
                 }
-
             }
 
             //回复事件返回
@@ -118,6 +121,7 @@ public class TelegramBot extends AbilityBot {
                 return;
             }
         }
+
 
         //按钮事件返回
         if (update.hasCallbackQuery() && update.getCallbackQuery().getData() != null) {
@@ -138,7 +142,12 @@ public class TelegramBot extends AbilityBot {
     }
 
     //commands start
+    //person
 
+    /**
+     * find achievements
+     * @return Ability
+     */
     public Ability achievements() {
         return Ability
                 .builder()
@@ -151,13 +160,18 @@ public class TelegramBot extends AbilityBot {
                     message.setChatId(ctx.update().getMessage().getChatId().toString());
                     message.setText("Please input your wallet address on chain!");
                     message.setReplyToMessageId(ctx.update().getMessage().getMessageId());
-                    message.setProtectContent(true);
                     message.setReplyMarkup(MessageUtils.forceReply());
                     silent.execute(message);
                 })
                 .build();
     }
 
+    //Groups
+
+    /**
+     * set groupRule
+     * @return Ability
+     */
     public Ability setJoinRule() {
         return Ability
                 .builder()
@@ -173,6 +187,7 @@ public class TelegramBot extends AbilityBot {
                 })
                 .build();
     }
+
 
     // commands -- end
 
